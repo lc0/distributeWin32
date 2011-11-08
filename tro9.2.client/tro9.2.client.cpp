@@ -15,6 +15,7 @@
 
 using namespace std;
 
+int H, N;
 char server[256];
 int port, serverPort;
 
@@ -283,11 +284,8 @@ int getCoresNumber (void) {
 }
 
 
-
-
 int _tmain(int argc, _TCHAR* argv[])
 {
-//*
 	cout << "Welcome to distributing computing with Win32.Sockets." << endl;
 	cout << "Student: Sergii Khomenko." << endl;
 	cout << "Client application with task: a=max(MB*MC+MO+ME+MR)" << endl;
@@ -339,27 +337,39 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	delete buffer;
 	buffer_length=sizeof(int);
-	buffer = new char[buffer_length];
+	buffer = new char[buffer_length];	
+
 	receive(ss, buffer, buffer_length);
-	cout << "N = " << (int)(*(int*)buffer) << endl;
-	int N = (int)(*(int*)buffer);
+	N = (int)(*(int*)buffer);
+	cout << "N = " << N << endl;	
+
 	receive(ss, buffer, buffer_length);
-	int H = (int)(*(int*)buffer);
-	cout << "H = " << (int)(*(int*)buffer) << endl;
+	H = (int)(*(int*)buffer);
+	cout << "H = " << H << endl;
 	cout << "  [>] Input data for computations have been received" << endl;
 
-	char *bbuffer = new char[sizeof(int)*N*N];
-	receive(ss, bbuffer, sizeof(int)*N*N);
+	int hNode = H*coresNumber;
+	int hnSize = sizeof(int)*N*hNode;
+	int nSize = sizeof(int)*N*N;
+
+	char *mbh_b = new char[hnSize];
+	receive(ss, mbh_b, hnSize);
+	char *mc_b = new char[nSize];
+	receive(ss, mc_b, nSize);
+	char *moh_b = new char[hnSize];
+	receive(ss, moh_b, hnSize);
+	char *me_b = new char[nSize];
+	receive(ss, me_b, nSize);
+	char *mrh_b = new char[hnSize];
+	receive(ss, mrh_b, hnSize);
 
 	cout << "  [>] Big matrix has been received also" << endl;
 	for (int i=0; i<N; i++) {
 		for (int j=0; j<N; j++)
-			cout << ((int*)bbuffer)[i*N+j] <<" ";
+			cout << ((int*)me_b)[i*N+j] <<" ";
 		cout << endl;
 	}
-
-	char *mrh_b = new char[sizeof(int)*N*H*coresNumber];
-	receive(ss, mrh_b, sizeof(int)*N*H*coresNumber);
+	
 	cout << "  [>] Part of matrix MR has been received also" << endl;
 	for (int i=0; i<H*coresNumber; i++) {
 		for (int j=0; j<N; j++)
