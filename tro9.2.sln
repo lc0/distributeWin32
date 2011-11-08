@@ -1,0 +1,26 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tro9.2.server", "tro9.2\tro9.2.vcxproj", "{BA2AB64B-328D-49F4-ACB0-6118EB2EC29F}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "tro9.2.client", "tro9.2.client\tro9.2.client.vcxproj", "{F7E42EE0-ECE8-4BFA-8831-490454D725FD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Win32 = Debug|Win32
+		Release|Win32 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{BA2AB64B-328D-49F4-ACB0-6118EB2EC29F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{BA2AB64B-328D-49F4-ACB0-6118EB2EC29F}.Debug|Win32.Build.0 = Debug|Win32
+		{BA2AB64B-328D-49F4-ACB0-6118EB2EC29F}.Release|Win32.ActiveCfg = Release|Win32
+		{BA2AB64B-328D-49F4-ACB0-6118EB2EC29F}.Release|Win32.Build.0 = Release|Win32
+		{F7E42EE0-ECE8-4BFA-8831-490454D725FD}.Debug|Win32.ActiveCfg = Debug|Win32
+		{F7E42EE0-ECE8-4BFA-8831-490454D725FD}.Debug|Win32.Build.0 = Debug|Win32
+		{F7E42EE0-ECE8-4BFA-8831-490454D725FD}.Release|Win32.ActiveCfg = Release|Win32
+		{F7E42EE0-ECE8-4BFA-8831-490454D725FD}.Release|Win32.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
