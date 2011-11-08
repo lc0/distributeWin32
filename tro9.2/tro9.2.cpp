@@ -322,16 +322,35 @@ void client_communications(int *node_number) {
 	sendData(distributed_nodes[*node_number].nodeSocket, buffer, sizeof(int));
 
 	char* bbufer = new char[sizeof(int)*N*N];
-	//sending matrix and parts of matrix	
+	int hNode = H*distributed_nodes[*node_number].coresNumber;
+	int hnSize = sizeof(int)*N*hNode;
+	int nSize = sizeof(int)*N*N;
+	//sending matrix and parts of matrix MBH, MC, MOH, ME, MRH	
 	EnterCriticalSection(&comm_cs);
-	memcpy((int*) bbufer, MB->getRaw(), sizeof(int)*N*N);
+	memcpy((int*) bbufer, MB->getRaw(*node_number*H, hNode), hnSize);
 	LeaveCriticalSection(&comm_cs);
-	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, sizeof(int)*N*N);
+	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, hnSize);
 
 	EnterCriticalSection(&comm_cs);
-	memcpy((int*) bbufer, MR->getRaw(*node_number*H, H*distributed_nodes[*node_number].coresNumber), sizeof(int)*N*H*distributed_nodes[*node_number].coresNumber);
+	memcpy((int*) bbufer, MC->getRaw(), nSize);
 	LeaveCriticalSection(&comm_cs);
-	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, sizeof(int)*N*H*distributed_nodes[*node_number].coresNumber);
+	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, nSize);
+
+	EnterCriticalSection(&comm_cs);
+	memcpy((int*) bbufer, MO->getRaw(*node_number*H, hNode), hnSize);
+	LeaveCriticalSection(&comm_cs);
+	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, hnSize);
+
+	EnterCriticalSection(&comm_cs);
+	memcpy((int*) bbufer, ME->getRaw(), nSize);
+	LeaveCriticalSection(&comm_cs);
+	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, nSize);
+
+	EnterCriticalSection(&comm_cs);
+	memcpy((int*) bbufer, MR->getRaw(), nSize);
+	LeaveCriticalSection(&comm_cs);
+	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, nSize);
+
 	
 
 
