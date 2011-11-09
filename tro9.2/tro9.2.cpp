@@ -24,7 +24,7 @@ int cs;
 struct sockaddr_in client_sin, server_sin;
 struct in_addr server_address;
 
-long result_max;
+long result_max=MININT;
 
 HANDLE *client_comm, *core_calc;
 DWORD *client_comm_id, *core_calc_id;
@@ -351,25 +351,16 @@ void client_communications(int *node_number) {
 	LeaveCriticalSection(&comm_cs);
 	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, nSize);
 	
-	//A point of semi-server part of the server. Here we start threads for calculations
-/*
-	for (int i=0; i<distributed_nodes[*node_number].coresNumber; i++) {
-		int* param = new int;
-		*param = i;
-
-		//threads for calculations with cores of distributed nodes
-		core_calc[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) client_computations, 
-			param, 0, (DWORD*) ((size_t)core_calc_id + i * sizeof(DWORD)));		
-	}
-*/
-
-
 	//waiting for result with blocking thread on receive
-	int core_max = MININT;
+	int core_max=MININT;	
+	char* result_buf = new char[sizeof(int)];
+	receive(distributed_nodes[*node_number].nodeSocket, result_buf, sizeof(int));
+	core_max = (int)(*(int*)result_buf);
+	cout << "  [<] Result has been received from node" << *node_number << " - " << core_max << endl;
 
-	EnterCriticalSection(&comm_cs);
+	EnterCriticalSection(&result_cs);
 	if (core_max > result_max) result_max = core_max; 
-	LeaveCriticalSection(&comm_cs);
+	LeaveCriticalSection(&result_cs);
 
 	//communications with distributed nodes have done
 	ReleaseSemaphore(comm_finished[*node_number], 1, NULL);
@@ -489,18 +480,23 @@ int _tmain(int argc, _TCHAR* argv[])
 		client_comm[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) client_communications, 
 			parameter, 0, (DWORD*) ((size_t)client_comm_id + i * sizeof(DWORD)));		
 	}
-/*	
-	for (int i=0; i<coresNumber; i++) {
-		int* parameter = new int;
-		*parameter = i;
 
-		//threads for calculations on local cores
+	//A point of client part of the server. Here we start threads for calculations on the server side
+/*
+	for (int i=0; i<distributed_nodes[*node_number].coresNumber; i++) {
+		int* param = new int;
+		*param = i;
+
+		//threads for calculations with cores of distributed nodes
 		core_calc[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) client_computations, 
-			parameter, 0, (DWORD*) ((size_t)core_calc_id + i * sizeof(DWORD)));		
-	}	
-*/	
+			param, 0, (DWORD*) ((size_t)core_calc_id + i * sizeof(DWORD)));		
+	}
+*/
+
 	//wating for the result from distributed nodes
 	WaitForMultipleObjects(nodes, comm_finished, true, INFINITE);
+
+	cout << "[*] Calculations have done with result a=" << result_max << endl;
 
 	DeleteCriticalSection(&result_cs);
 	DeleteCriticalSection(&comm_cs);

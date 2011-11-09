@@ -15,7 +15,7 @@
 
 using namespace std;
 
-int H, N, hNode, hnSize, nSize;
+int H, N, hNode, hnSize, nSize, node_max=MININT;
 char server[256];
 int port, serverPort;
 
@@ -32,7 +32,7 @@ struct in_addr server_address;
 
 HANDLE *client_comm, *core_calc;
 DWORD *client_comm_id, *core_calc_id;
-CRITICAL_SECTION comm_cs;
+CRITICAL_SECTION comm_cs, result_cs;
 HANDLE *core_finished;
 
 
@@ -288,6 +288,7 @@ void client_computations(int *node_number) {
 	cout << "[*] Computation on the core" << *node_number << " has started" << endl;
 
 	//copying data from global context to local context
+	//TODO:check size and offset for core's part of task
 	char *mbh_lb = new char[hnSize];
 	EnterCriticalSection(&comm_cs);
 	memcpy(mbh_lb, mbh_b, hnSize);
@@ -307,7 +308,22 @@ void client_computations(int *node_number) {
 	char *mrh_lb = new char[hnSize];
 	memcpy(mrh_lb, mrh_b, hnSize);
 
-	//TODO:calculations
+	//distributed calculations on client side. Here can be some another useful functionality
+	int core_max = MININT;
+	for (int i=0; i<H; i++) {
+		for (int j=0; j<N; j++) {
+			int tval = 0;
+			for (int v=0; v<N; v++) 
+				tval += ((int*)mbh_lb)[i*N+v]*((int*)mc_lb)[j*N+v] + ((int*)moh_lb)[i*N+v]*((int*)me_lb)[j*N+v];
+			tval+=((int*)mrh_lb)[i*N+j];
+			if (tval>core_max) core_max = tval;
+		}
+	}
+	//cout << core_max << endl;
+
+	EnterCriticalSection(&result_cs);
+	if (core_max > node_max) node_max = core_max; 
+	LeaveCriticalSection(&result_cs);
 	
 	ReleaseSemaphore(core_finished[*node_number], 1, NULL);
 	delete(mbh_lb); delete(mc_lb); delete(moh_lb);
@@ -380,6 +396,8 @@ int _tmain(int argc, _TCHAR* argv[])
 	buffer_length=sizeof(int);
 	buffer = new char[buffer_length];
 	InitializeCriticalSection(&comm_cs);
+	InitializeCriticalSection(&result_cs);
+
 
 	receive(ss, buffer, buffer_length);
 	N = (int)(*(int*)buffer);
@@ -421,7 +439,11 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	WaitForMultipleObjects(coresNumber, core_finished, true, INFINITE);
 
-	//TODO:sending the result to the server 
+	//sending the result of node's calculations to the server 
+	char* result_buf = new char[sizeof(int)];
+	*((int*) result_buf) = node_max;	
+	sendData(ss, result_buf, sizeof(int));
+	cout << "  [<] Result has been sent " << endl;
 
 	shutdown(ss, 0);
 	delete(mbh_b); delete(mc_b); delete(moh_b);
