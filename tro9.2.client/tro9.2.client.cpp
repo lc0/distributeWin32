@@ -15,9 +15,11 @@
 
 using namespace std;
 
-int H, N;
+int H, N, hNode, hnSize, nSize;
 char server[256];
 int port, serverPort;
+
+char *mbh_b, *mc_b, *moh_b, *me_b, *mrh_b;
 
 WSADATA wsaData;
 WORD version;
@@ -27,6 +29,11 @@ int error;
 int ss;
 struct sockaddr_in client_sin, server_sin;
 struct in_addr server_address;
+
+HANDLE *client_comm, *core_calc;
+DWORD *client_comm_id, *core_calc_id;
+CRITICAL_SECTION comm_cs;
+HANDLE *core_finished;
 
 
 class Vector {
@@ -276,6 +283,39 @@ int sendData(SOCKET ClientSocket, char* buf, int length) {
  	return 0;
 }
 
+//parallel computation on cores of distributed nodes
+void client_computations(int *node_number) {
+	cout << "[*] Computation on the core" << *node_number << " has started" << endl;
+
+	//copying data from global context to local context
+	char *mbh_lb = new char[hnSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(mbh_lb, mbh_b, hnSize);
+	LeaveCriticalSection(&comm_cs);
+	char *mc_lb = new char[nSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(mc_lb, mc_b, nSize);
+	LeaveCriticalSection(&comm_cs);	
+	char *moh_lb = new char[hnSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(moh_lb, moh_b, hnSize);
+	LeaveCriticalSection(&comm_cs);	
+	char *me_lb = new char[nSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(me_lb, me_b, nSize);
+	LeaveCriticalSection(&comm_cs);	
+	char *mrh_lb = new char[hnSize];
+	memcpy(mrh_lb, mrh_b, hnSize);
+
+	//TODO:calculations
+	
+	ReleaseSemaphore(core_finished[*node_number], 1, NULL);
+	delete(mbh_lb); delete(mc_lb); delete(moh_lb);
+	delete(me_lb); delete(mrh_lb);
+	
+	cout << "[*] Computation on the core" << *node_number << " has finished" << endl;
+}
+
 //getting information about cores of computation node
 int getCoresNumber (void) {
 	SYSTEM_INFO sinfo;
@@ -335,50 +375,57 @@ int _tmain(int argc, _TCHAR* argv[])
 	*((int*) buffer) = coresNumber;	
 	sendData(ss, buffer, buffer_length);
 
+	//receiving data for computations
 	delete buffer;
 	buffer_length=sizeof(int);
-	buffer = new char[buffer_length];	
+	buffer = new char[buffer_length];
+	InitializeCriticalSection(&comm_cs);
 
 	receive(ss, buffer, buffer_length);
 	N = (int)(*(int*)buffer);
-	cout << "N = " << N << endl;	
-
+	cout << "N = " << N << endl;
 	receive(ss, buffer, buffer_length);
 	H = (int)(*(int*)buffer);
-	cout << "H = " << H << endl;
-	cout << "  [>] Input data for computations have been received" << endl;
+	cout << "H = " << H << endl;	
 
-	int hNode = H*coresNumber;
-	int hnSize = sizeof(int)*N*hNode;
-	int nSize = sizeof(int)*N*N;
+	hNode = H*coresNumber;
+	hnSize = sizeof(int)*N*hNode;
+	nSize = sizeof(int)*N*N;
 
-	char *mbh_b = new char[hnSize];
+	mbh_b = new char[hnSize];
 	receive(ss, mbh_b, hnSize);
-	char *mc_b = new char[nSize];
+	mc_b = new char[nSize];
 	receive(ss, mc_b, nSize);
-	char *moh_b = new char[hnSize];
+	moh_b = new char[hnSize];
 	receive(ss, moh_b, hnSize);
-	char *me_b = new char[nSize];
+	me_b = new char[nSize];
 	receive(ss, me_b, nSize);
-	char *mrh_b = new char[hnSize];
+	mrh_b = new char[hnSize];
 	receive(ss, mrh_b, hnSize);
-
-	cout << "  [>] Big matrix has been received also" << endl;
-	for (int i=0; i<N; i++) {
-		for (int j=0; j<N; j++)
-			cout << ((int*)me_b)[i*N+j] <<" ";
-		cout << endl;
-	}
+	cout << "  [>] Input data for computations have been received" << endl;
 	
-	cout << "  [>] Part of matrix MR has been received also" << endl;
-	for (int i=0; i<H*coresNumber; i++) {
-		for (int j=0; j<N; j++)
-			cout << ((int*)mrh_b)[i*N+j] <<" ";
-		cout << endl;
+	//threads for calculations with cores of distributed nodes
+	core_calc = new HANDLE[coresNumber];
+	core_calc_id = new DWORD[coresNumber];
+	core_finished = new HANDLE[coresNumber];
+	for (int i=0; i<coresNumber; i++)
+		core_finished[i]= CreateSemaphore(NULL, 0, 1, NULL);
+
+	for (int i=0; i<coresNumber; i++) {
+		int* param = new int;
+		*param = i;
+		
+		core_calc[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) client_computations, 
+			param, 0, (DWORD*) ((size_t)core_calc_id + i * sizeof(DWORD)));		
 	}
 
+	WaitForMultipleObjects(coresNumber, core_finished, true, INFINITE);
+
+	//TODO:sending the result to the server 
 
 	shutdown(ss, 0);
+	delete(mbh_b); delete(mc_b); delete(moh_b);
+	delete(me_b); delete(mrh_b);
 
 	cin.sync();
 	cout << cin.get();	

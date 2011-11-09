@@ -30,7 +30,7 @@ HANDLE *client_comm, *core_calc;
 DWORD *client_comm_id, *core_calc_id;
 
 CRITICAL_SECTION comm_cs, result_cs;
-HANDLE *calc_finished;
+HANDLE *core_finished, *comm_finished;
 
 
 
@@ -350,8 +350,18 @@ void client_communications(int *node_number) {
 	memcpy((int*) bbufer, MR->getRaw(), nSize);
 	LeaveCriticalSection(&comm_cs);
 	sendData(distributed_nodes[*node_number].nodeSocket, bbufer, nSize);
-
 	
+	//A point of semi-server part of the server. Here we start threads for calculations
+/*
+	for (int i=0; i<distributed_nodes[*node_number].coresNumber; i++) {
+		int* param = new int;
+		*param = i;
+
+		//threads for calculations with cores of distributed nodes
+		core_calc[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE) client_computations, 
+			param, 0, (DWORD*) ((size_t)core_calc_id + i * sizeof(DWORD)));		
+	}
+*/
 
 
 	//waiting for result with blocking thread on receive
@@ -361,17 +371,17 @@ void client_communications(int *node_number) {
 	if (core_max > result_max) result_max = core_max; 
 	LeaveCriticalSection(&comm_cs);
 
-	//calculation has done
-	ReleaseSemaphore(calc_finished[*node_number], 1, NULL);
+	//communications with distributed nodes have done
+	ReleaseSemaphore(comm_finished[*node_number], 1, NULL);
 
 	cout << "[*] Thread for communication with node" << *node_number << " has finished" << endl;
 }
 
-//parallel computation on distributed nodes
+//parallel computation on cores of distributed nodes
 void client_computations(int *node_number) {
 	cout << "[*] Computation on the core" << *node_number << " has started" << endl;
 	
-
+	cout << "[*] Computation on the core" << *node_number << " has finished" << endl;
 }
 
 //getting information about cores of computation node
@@ -383,19 +393,6 @@ int getCoresNumber (void) {
 
 int _tmain(int argc, _TCHAR* argv[])
 {	
-/*
-	cout << "Please enter N: " << endl;
-	cin >> N;
-	MB = new Matrix (N);
-	MB->inputMatrix();
-	int *t = MB->getRaw();
-	for (int i=0; i<N; i++) {
-		for (int j=0; j<N; j++)
-			cout << t[i*N+j] <<" ";
-		cout << endl;
-	}
-*/
-
 	cout << "Welcome to distributing computing with Win32.Sockets." << endl;
 	cout << "Student: Sergii Khomenko." << endl;
 	cout << "Server application with task: a=max(MB*MC+MO+ME+MR)" << endl;
@@ -469,9 +466,9 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	InitializeCriticalSection(&result_cs);
 	InitializeCriticalSection(&comm_cs);	
-	calc_finished = new HANDLE[nodes];
+	comm_finished = new HANDLE[nodes];
 	for (int i=0; i<nodes; i++)
-		calc_finished[i]= CreateSemaphore(NULL, 0, nodes, NULL);
+		comm_finished[i]= CreateSemaphore(NULL, 0, nodes, NULL);
 
 	MB->inputMatrix(); MC->inputMatrix(); MO->inputMatrix();
 	ME->inputMatrix(); MR->inputMatrix();
@@ -503,7 +500,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	}	
 */	
 	//wating for the result from distributed nodes
-	WaitForMultipleObjects(nodes,calc_finished, true, INFINITE);
+	WaitForMultipleObjects(nodes, comm_finished, true, INFINITE);
 
 	DeleteCriticalSection(&result_cs);
 	DeleteCriticalSection(&comm_cs);
