@@ -371,10 +371,51 @@ void client_communications(int *node_number) {
 //parallel computation on cores of distributed nodes
 void client_computations(int *node_number) {
 	cout << "[*] Computation on the core" << *node_number << " has started" << endl;
+
+	//copying data from global context to local context
+	//TODO:check size and offset for core's part of task
+	char *mbh_lb = new char[hnSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(mbh_lb, mbh_b, hnSize);
+	LeaveCriticalSection(&comm_cs);
+	char *mc_lb = new char[nSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(mc_lb, mc_b, nSize);
+	LeaveCriticalSection(&comm_cs);	
+	char *moh_lb = new char[hnSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(moh_lb, moh_b, hnSize);
+	LeaveCriticalSection(&comm_cs);	
+	char *me_lb = new char[nSize];
+	EnterCriticalSection(&comm_cs);
+	memcpy(me_lb, me_b, nSize);
+	LeaveCriticalSection(&comm_cs);	
+	char *mrh_lb = new char[hnSize];
+	memcpy(mrh_lb, mrh_b, hnSize);
+
+	//distributed calculations on client side. Here can be some another useful functionality
+	int core_max = MININT;
+	for (int i=0; i<H; i++) {
+		for (int j=0; j<N; j++) {
+			int tval = 0;
+			for (int v=0; v<N; v++) 
+				tval += ((int*)mbh_lb)[i*N+v]*((int*)mc_lb)[j*N+v] + ((int*)moh_lb)[i*N+v]*((int*)me_lb)[j*N+v];
+			tval+=((int*)mrh_lb)[i*N+j];
+			if (tval>core_max) core_max = tval;
+		}
+	}
+	//cout << core_max << endl;
+
+	EnterCriticalSection(&result_cs);
+	if (core_max > node_max) node_max = core_max; 
+	LeaveCriticalSection(&result_cs);
+	
+	ReleaseSemaphore(core_finished[*node_number], 1, NULL);
+	delete(mbh_lb); delete(mc_lb); delete(moh_lb);
+	delete(me_lb); delete(mrh_lb);
 	
 	cout << "[*] Computation on the core" << *node_number << " has finished" << endl;
 }
-
 //getting information about cores of computation node
 int getCoresNumber (void) {
 	SYSTEM_INFO sinfo;
